@@ -17,24 +17,37 @@ exports('AddCityJob', AddCityJob)
 -- Functions
 
 local function giveStarterItems()
-    local Player = QBCore.Functions.GetPlayer(source)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
+
+    local runningUmIdCard = GetResourceState('um-idcard') == 'started'
     for _, v in pairs(QBCore.Shared.StarterItems) do
         local info = {}
-        if v.item == 'id_card' then
-            info.citizenid = Player.PlayerData.citizenid
-            info.firstname = Player.PlayerData.charinfo.firstname
-            info.lastname = Player.PlayerData.charinfo.lastname
-            info.birthdate = Player.PlayerData.charinfo.birthdate
-            info.gender = Player.PlayerData.charinfo.gender
-            info.nationality = Player.PlayerData.charinfo.nationality
-        elseif v.item == 'driver_license' then
-            info.firstname = Player.PlayerData.charinfo.firstname
-            info.lastname = Player.PlayerData.charinfo.lastname
-            info.birthdate = Player.PlayerData.charinfo.birthdate
-            info.type = 'Class C Driver License'
+        if runningUmIdCard and (v.item == 'id_card' or v.item == 'driver_license') then
+            exports['um-idcard']:CreateMetaLicense(src, { v.item })
+            goto continue
         end
-        exports['qb-inventory']:AddItem(source, v.item, 1, false, info, 'qb-cityhall:giveStarterItems')
+
+        if v.item == 'id_card' then
+            info = {
+                citizenid = Player.PlayerData.citizenid,
+                firstname = Player.PlayerData.charinfo.firstname,
+                lastname = Player.PlayerData.charinfo.lastname,
+                birthdate = Player.PlayerData.charinfo.birthdate,
+                gender = Player.PlayerData.charinfo.gender,
+                nationality = Player.PlayerData.charinfo.nationality
+            }
+        elseif v.item == 'driver_license' then
+            info = {
+                firstname = Player.PlayerData.charinfo.firstname,
+                lastname = Player.PlayerData.charinfo.lastname,
+                birthdate = Player.PlayerData.charinfo.birthdate,
+                type = 'Class C Driver License'
+            }
+        end
+        exports['qb-inventory']:AddItem(src, v.item, v.amount, false, info, 'qb-cityhall:giveStarterItems')
+        ::continue::
     end
 end
 
@@ -68,25 +81,36 @@ RegisterNetEvent('qb-cityhall:server:requestId', function(item, hall)
     if not Player then return end
     local itemInfo = Config.Cityhalls[hall].licenses[item]
     if not Player.Functions.RemoveMoney('cash', itemInfo.cost, 'cityhall id') then return TriggerClientEvent('QBCore:Notify', src, ('You don\'t have enough money on you, you need %s cash'):format(itemInfo.cost), 'error') end
+    local runningUmIdCard = GetResourceState('um-idcard') == 'started'
     local info = {}
-    if item == 'id_card' then
-        info.citizenid = Player.PlayerData.citizenid
-        info.firstname = Player.PlayerData.charinfo.firstname
-        info.lastname = Player.PlayerData.charinfo.lastname
-        info.birthdate = Player.PlayerData.charinfo.birthdate
-        info.gender = Player.PlayerData.charinfo.gender
-        info.nationality = Player.PlayerData.charinfo.nationality
-    elseif item == 'driver_license' then
-        info.firstname = Player.PlayerData.charinfo.firstname
-        info.lastname = Player.PlayerData.charinfo.lastname
-        info.birthdate = Player.PlayerData.charinfo.birthdate
-        info.type = 'Class C Driver License'
-    elseif item == 'weaponlicense' then
-        info.firstname = Player.PlayerData.charinfo.firstname
-        info.lastname = Player.PlayerData.charinfo.lastname
-        info.birthdate = Player.PlayerData.charinfo.birthdate
+    if runningUmIdCard and (item == 'id_card' or item == 'driver_license' or item == 'weaponlicense') then
+        if item == "id_card" then
+            exports['um-idcard']:CreateMetaLicense(src, 'id_card')
+        elseif item == "driver_license" then
+            exports['um-idcard']:CreateMetaLicense(src, 'driver_license')
+        elseif item == "weaponlicense" then
+            exports['um-idcard']:CreateMetaLicense(src, 'weaponlicense')
+        end
     else
-        return false
+        if item == 'id_card' then
+            info.citizenid = Player.PlayerData.citizenid
+            info.firstname = Player.PlayerData.charinfo.firstname
+            info.lastname = Player.PlayerData.charinfo.lastname
+            info.birthdate = Player.PlayerData.charinfo.birthdate
+            info.gender = Player.PlayerData.charinfo.gender
+            info.nationality = Player.PlayerData.charinfo.nationality
+        elseif item == 'driver_license' then
+            info.firstname = Player.PlayerData.charinfo.firstname
+            info.lastname = Player.PlayerData.charinfo.lastname
+            info.birthdate = Player.PlayerData.charinfo.birthdate
+            info.type = 'Class C Driver License'
+        elseif item == 'weaponlicense' then
+            info.firstname = Player.PlayerData.charinfo.firstname
+            info.lastname = Player.PlayerData.charinfo.lastname
+            info.birthdate = Player.PlayerData.charinfo.birthdate
+        else
+            return false
+        end
     end
     if not exports['qb-inventory']:AddItem(source, item, 1, false, info, 'qb-cityhall:server:requestId') then return end
     TriggerClientEvent('qb-inventory:client:ItemBox', src, QBCore.Shared.Items[item], 'add')
